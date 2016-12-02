@@ -3,26 +3,35 @@ import sys
 def concat_add_column(column):
 	return "add column "+column
 
-def get_tables_src(filename):
-	tables =[]
-	file = open(filename)
-	for line in file:
-		l = line.strip()
-		tables.append(l)
-	file.close()
-	return tables
-
 def concat_table_name(date,name):
 	return date+name
 
+def get_settings(filename):
+	d = {'tables':[]}
+	file = open(filename)
+	i = 0
+	for line in file:
+		if i < 2:
+			l = line.strip().split(":")
+			d[l[0]] = l[1]
+		else:
+			d['tables'].append(line.strip())
+		i+=1
+	file.close()
+	return d
 
-tables_date =  get_tables_src("tables_parser.txt")
-file = open("parser.sql","w")
+def concat_schema(schema,tablename):
+	return schema+'.'+tablename
+
+settings = get_settings("tables_parser.txt")
+tables_date = settings['tables']
+schema_insert = settings['update']
+schema_select = settings['source']
+file = open("exec_source.sql","w")
 file.write("-- REMOVE FOREIGN KEY RESTRICTION \n\n")
-file.write("SELECT concat('alter table ',table_schema,'.',table_name,' DROP FOREIGN KEY ',constraint_name,';') FROM information_schema.table_constraints WHERE constraint_type='FOREIGN KEY' AND table_schema='db_tw_stream';")
+file.write("SELECT concat('alter table ',table_schema,'.',table_name,' DROP FOREIGN KEY ',constraint_name,';') FROM information_schema.table_constraints WHERE constraint_type='FOREIGN KEY' AND table_schema='"+settings['source']+"';\n\n")
 file.write("set @@sql_mode='no_engine_substitution';\n\n")
 file.write('-- ------------------------------------------------------- \n\n')
-
 
 alter_table = "alter table {0} "
 update_column_user = "update {0} set id_user = NULL;\n\n"
@@ -112,20 +121,17 @@ create_table = "DROP TABLE IF EXISTS `{0}`; /*!40101 SET @saved_cs_client = @@ch
 for t in tables:
 	file.write(create_table.format(t)+"\n\n")
 	file.write('-- ------------------------------------------------------- \n\n')
-
-
-
+file.close()
+file = open("exec_updated.sql","w")
 file.write('-- CREATE AND INSERT INTO NEW SCHEMA------------------------------------------------------- \n\n\n')
 create_tables = "/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */; /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */; /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */; /*!40101 SET NAMES utf8 */; /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */; /*!40103 SET TIME_ZONE='+00:00' */; /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */; /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */; /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */; /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */; DROP TABLE IF EXISTS `{0}_e_hashtags`; /*!40101 SET @saved_cs_client = @@character_set_client */; /*!40101 SET character_set_client = utf8 */; CREATE TABLE `{0}_e_hashtags` ( `download_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `id_tweet` bigint(20) NOT NULL, `idx_start` int(11) NOT NULL, `idx_end` int(11) NOT NULL, `hashtag` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, `sys_partition` int(11) DEFAULT NULL, PRIMARY KEY (`id_tweet`,`idx_start`,`idx_end`), KEY `download_date` (`download_date`) USING BTREE ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4; /*!40101 SET character_set_client = @saved_cs_client */; DROP TABLE IF EXISTS `{0}_e_medias`; /*!40101 SET @saved_cs_client = @@character_set_client */; /*!40101 SET character_set_client = utf8 */; CREATE TABLE `{0}_e_medias` ( `download_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `id_tweet` bigint(20) NOT NULL, `id_media` bigint(20) NOT NULL, `url` text NOT NULL, `url_https` text NOT NULL, `type` varchar(50) NOT NULL, `sizes` text NOT NULL, `sys_partition` int(11) DEFAULT NULL, PRIMARY KEY (`id_tweet`,`id_media`), KEY `download_date` (`download_date`) USING BTREE ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4; /*!40101 SET character_set_client = @saved_cs_client */; DROP TABLE IF EXISTS `{0}_e_urefs`; /*!40101 SET @saved_cs_client = @@character_set_client */; /*!40101 SET character_set_client = utf8 */; CREATE TABLE `{0}_e_urefs` ( `download_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `id_tweet` bigint(20) NOT NULL, `idx_start` int(11) NOT NULL, `idx_end` int(11) NOT NULL, `id_user` bigint(20) NOT NULL, `user_name` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, `user_screen_name` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, `sys_partition` int(11) DEFAULT NULL, PRIMARY KEY (`id_tweet`,`idx_start`,`idx_end`), KEY `download_date` (`download_date`) USING BTREE ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4; /*!40101 SET character_set_client = @saved_cs_client */; DROP TABLE IF EXISTS `{0}_e_urls`; /*!40101 SET @saved_cs_client = @@character_set_client */; /*!40101 SET character_set_client = utf8 */; CREATE TABLE `{0}_e_urls` ( `download_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `id_tweet` bigint(20) NOT NULL, `idx_start` int(11) NOT NULL, `idx_end` int(11) NOT NULL, `url_short` text NOT NULL, `url_long` text NOT NULL, `sys_partition` int(11) DEFAULT NULL, PRIMARY KEY (`id_tweet`,`idx_start`,`idx_end`), KEY `download_date` (`download_date`) USING BTREE ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4; /*!40101 SET character_set_client = @saved_cs_client */; DROP TABLE IF EXISTS `{0}_tweets`; /*!40101 SET @saved_cs_client = @@character_set_client */; /*!40101 SET character_set_client = utf8 */; CREATE TABLE `{0}_tweets` ( `download_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `creation_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `id_tweet` bigint(20) NOT NULL, `id_user` bigint(20) NOT NULL, `favorited` tinyint(4) NOT NULL, `truncated` tinyint(4) NOT NULL, `lang_tweet` varchar(10) NOT NULL, `text_tweet` text, `rt` tinyint(4) NOT NULL, `rt_count` bigint(20) DEFAULT NULL, `rt_id` bigint(20) DEFAULT NULL, `text_rt` text, `quote` tinyint(4) NOT NULL, `quote_id` bigint(20) DEFAULT NULL, `text_quote` text, `src_href` varchar(200) DEFAULT NULL, `src_rel` varchar(50) DEFAULT NULL, `src_text` varchar(100) DEFAULT NULL, `in_reply_to_status_id` bigint(20) DEFAULT NULL, `in_reply_to_user_id` bigint(20) DEFAULT NULL, `in_reply_to_screen_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `geo_located` tinyint(4) NOT NULL, `geo_latitude` decimal(65,8) DEFAULT NULL, `geo_longitude` decimal(65,8) DEFAULT NULL, `place_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `place_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `place_country_code` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `place_country` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `place_fullname` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `place_street_address` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `place_url` varchar(2048) DEFAULT NULL, `place_place_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `counter` int(11) NOT NULL, `type` varchar(10) NOT NULL, `countries_text` varchar(200) DEFAULT NULL, `repeated_user` tinyint(4) NOT NULL, `sys_partition` int(11) DEFAULT NULL, `blacklisted_tweet` tinyint(4) NOT NULL DEFAULT '0', `has_keyword` tinyint(4) NOT NULL DEFAULT '0', PRIMARY KEY (`id_tweet`), KEY `creation_date` (`creation_date`) USING BTREE, KEY `download_date` (`download_date`) USING BTREE ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4; /*!40101 SET character_set_client = @saved_cs_client */; DROP TABLE IF EXISTS `{0}_users`; /*!40101 SET @saved_cs_client = @@character_set_client */; /*!40101 SET character_set_client = utf8 */; CREATE TABLE `{0}_users` ( `download_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `creation_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, `id_tweet` bigint(20) NOT NULL, `id_user` bigint(20) NOT NULL, `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `screen_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL, `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, `statuses_count` bigint(20) DEFAULT NULL, `favorites_count` bigint(20) DEFAULT NULL, `followers_count` bigint(20) DEFAULT NULL, `friends_count` bigint(20) DEFAULT NULL, `listed_count` bigint(20) DEFAULT NULL, `translator` tinyint(4) DEFAULT NULL, `geo_enabled` tinyint(4) DEFAULT NULL, `lang_user` varchar(10) DEFAULT NULL, `location` text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin, `timezone` varchar(30) DEFAULT NULL, `utc_offset_mins` int(11) DEFAULT NULL, `follow_request_sent` tinyint(4) DEFAULT NULL, `uprotected` tinyint(4) DEFAULT NULL, `verified` tinyint(4) DEFAULT NULL, `contribution_enable` tinyint(4) DEFAULT NULL, `show_all_inline_media` tinyint(4) DEFAULT NULL, `url` text, `profile_bkg_color` varchar(6) DEFAULT NULL, `profile_bkg_img_url` text, `profile_img_url` text, `profile_link_color` varchar(6) DEFAULT NULL, `profile_sidebar_border_color` varchar(6) DEFAULT NULL, `profile_sidebar_color` varchar(6) DEFAULT NULL, `profile_text_color` varchar(6) DEFAULT NULL, `countries_user` varchar(200) DEFAULT NULL, `blacklisted_user` tinyint(4) NOT NULL DEFAULT '0', `sys_partition` int(11) DEFAULT NULL, PRIMARY KEY (`id_tweet`,`id_user`) ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4; /*!40101 SET character_set_client = @saved_cs_client */; /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */; /*!40101 SET SQL_MODE=@OLD_SQL_MODE */; /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */; /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */; /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */; /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */; /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */; /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;"
-schema_insert = "db_tw_stream_src"
-schema_select = "db_tw_stream"
 insert_into = "insert into {1}.{0}_e_hashtags select download_date, id_tweet, idx_start, idx_end, hashtag, sys_partition from {2}.{0}_e_hashtags; insert into {1}.{0}_e_urefs select download_date, id_tweet, idx_start, idx_end, id_user, user_name, user_screen_name, sys_partition from {2}.{0}_e_urefs; insert into {1}.{0}_e_urls select download_date, id_tweet, idx_start, idx_end, url_short, url_long, sys_partition from {2}.{0}_e_urls; insert into {1}.{0}_users select download_date, creation_date, id_tweet, id_user, name, screen_name, description, statuses_count, favorites_count, followers_count, friends_count, listed_count, translator, geo_enabled, lang_user, location, timezone, utc_offset_mins, follow_request_sent, uprotected, verified, contribution_enable, show_all_inline_media, url, profile_bkg_color, profile_bkg_img_url, profile_img_url, profile_link_color, profile_sidebar_border_color, profile_sidebar_color, profile_text_color, countries_user, blacklisted_user, sys_partition from {2}.{0}_users; insert into {1}.{0}_tweets select download_date, creation_date, id_tweet, id_user, favorited, truncated, lang_tweet, text_tweet, rt, rt_count, rt_id, text_rt, quote, quote_id, text_quote, src_href, src_rel, src_text, in_reply_to_status_id, in_reply_to_user_id, in_reply_to_screen_name, geo_located, geo_latitude, geo_longitude, place_id, place_name, place_country_code, place_country, place_fullname, place_street_address, place_url, place_place_type, counter, type, countries_text, repeated_user, sys_partition, blacklisted_tweet, has_keyword from {2}.{0}_tweets;"
 for t in tables_date:
 	file.write(create_tables.format(t)+"\n\n")
 	file.write(insert_into.format(t,schema_insert,schema_select)+"\n\n")
 	file.write('-- ------------------------------------------------------- \n\n')
-
 file.close()
+
 
 
 
